@@ -4,6 +4,7 @@ from PIL import Image
 from io import BytesIO, StringIO
 import base64
 import time
+import math
 
 # Define a function to convert telemetry strings to float independent of decimal convention
 def convert_to_float(string_to_convert):
@@ -54,7 +55,7 @@ def update_rover(Rover, data):
       Rover.throttle, 'steer_angle =', Rover.steer, 'near_sample:', Rover.near_sample, 
       'picking_up:', data["picking_up"], 'sending pickup:', Rover.send_pickup, 
       'total time:', Rover.total_time, 'samples remaining:', data["sample_count"], 
-      'samples found:', Rover.samples_found)
+      'samples found:', Rover.samples_found, 'Roll:', Rover.roll, 'Pitch:', Rover.pitch)
       # Get the current image from the center camera of the rover
       imgString = data["image"]
       image = Image.open(BytesIO(base64.b64decode(imgString)))
@@ -101,10 +102,27 @@ def create_output_images(Rover):
                   # If rocks were detected within 3 meters of known sample positions
                   # consider it a success and plot the location of the known
                   # sample on the map
-                  if np.min(rock_sample_dists) < 3:
+                  if np.min(rock_sample_dists) < 3 and not Rover.near_sample:
                         map_add[test_rock_y-rock_size:test_rock_y+rock_size, 
                         test_rock_x-rock_size:test_rock_x+rock_size, :] = 255
-
+                        # When a sample is found in the vicinity,
+                        # stop, turn towards it and go forward
+                        #print('Near sample - stop')
+                        #Rover.throttle = 0
+                        #Rover.brake = Rover.brake_set
+                        #Rover.steer = 0
+                        #Rover.mode = 'stop'
+                        #deltax = Rover.samples_pos[0][idx] - Rover.pos[0]
+                        #deltay = Rover.samples_pos[1][idx] - Rover.pos[1]
+                        #turn_angle = -math.atan(float(deltax)/float(deltay))
+                        #print('Find angle:', turn_angle)
+                        #Rover.steer = np.clip((turn_angle * 180/np.pi), -15, 15)
+                        #Rover.steer = np.clip(turn_angle, -15, 15)
+                        #print('Move forward')
+                        #Rover.throttle = Rover.throttle_set
+                        #Rover.steer = 0
+                        #Rover.brake = 0
+                        #Rover.mode = 'forward'
       # Calculate some statistics on the map results
       # First get the total number of pixels in the navigable terrain map
       tot_nav_pix = np.float(len((plotmap[:,:,2].nonzero()[0])))
